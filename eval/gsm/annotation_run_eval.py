@@ -6,7 +6,7 @@ import random
 import torch
 import vllm
 import evaluate
-from eval.utils import (
+from ...eval.utils import (
     generate_completions,
     load_hf_lm_and_tokenizer,
     query_openai_chat_model,
@@ -14,11 +14,10 @@ from eval.utils import (
 )
 from eval.gsm.examplars import EXAMPLARS as GSM_EXAMPLARS
 
-exact_match = evaluate.load("/mnt/data2/mxdi/archive/exact_match.py")
+exact_match = evaluate.load("exact_match")
 
-def main(args):
-    print(args.seed)
-    random.seed(args.seed)
+def main(arg):
+    random.seed(42)  # Set the random seed for reproducibility
 
     print("Loading data...")
     test_data = []
@@ -29,26 +28,27 @@ def main(args):
                 "question": example["question"],
                 "answer": example["answer"].split("####")[1].strip()
             })
-        
-    # some numbers are in the `x,xxx` format, and we want to remove the comma
+    # Load test data from a JSON file and store it in a list of dictionaries.
+    # Each dictionary represents a test example with a question and its answer.
+
+    # Remove commas from numbers in the `x,xxx` format and validate that the answer is a valid number.
+
+
     for example in test_data:
         example["answer"] = re.sub(r"(\d),(\d)", r"\1\2", example["answer"])
-        if example["answer"] == "0":
-            #drop the example if the answer is 0
-            test_data.remove(example)
-            continue
-        assert float(example["answer"]), f"answer is not a valid number: {example['answer']},{example['question']}"
+        assert float(example["answer"]), f"answer is not a valid number: {example['answer']}"
 
     if args.max_num_examples and len(test_data) > args.max_num_examples:
         test_data = random.sample(test_data, args.max_num_examples)
-        
+    # If the maximum number of examples is specified and the actual number of examples exceeds it,
+    # randomly sample a subset of the test data with the specified maximum number of examples.
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir, exist_ok=True)
+    # Create the save directory if it doesn't already exist.
 
     systemprompt = "Answer the following questions.\n\n"
     systemprompt1 = "A conversation between an inquisitive user and an artificial intelligence assistant regarding mathematical problem-solving.The artificial intelligence assistant provides informative, thorough, and courteous responses to inquiries related to mathematics.\n\n"
-    systemprompt2 = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
     global GSM_EXAMPLARS
     if args.n_shot:
         if len(GSM_EXAMPLARS) > args.n_shot:
@@ -57,20 +57,23 @@ def main(args):
         for example in GSM_EXAMPLARS:
             if args.no_cot:
                 demonstrations.append(
-                    "USER: " + example["question"] + "\n" + "ASSISTANT: " + example["short_answer"]
+                    "Quesion: " + example["question"] + "\n" + "Answer: " + example["short_answer"]
                 )
             else:
                 demonstrations.append(
-                    "USER: " + example["question"] + "\n" + "ASSISTANT: " + example["cot_answer"]
+                    "Question: " + example["question"] + "\n" + "Answer: " + example["cot_answer"]
                 )
-        prompt_prefix = systemprompt + "\n\n".join(demonstrations) + "\n\n"
+        prompt_prefix = systemprompt1 + "\n\n".join(demonstrations) + "\n\n"
     else:
-        prompt_prefix = systemprompt
+        prompt_prefix = systemprompt1
+    # If the number of shots is specified, generate prompt demonstrations based on the GSM_EXAMPLARS.
+    # Otherwise, set the prompt prefix to a general question prompt.
+    # 搞system
 
     prompts = []
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
     for example in test_data:
-        prompt = prompt_prefix + "USER: " + example["question"].strip()
+        prompt = prompt_prefix + "Question: " + example["question"].strip()
         if args.use_chat_format:
             messages = [{"role": "user", "content": prompt}]
             prompt = chat_formatting_function(messages, add_bos=False)
@@ -79,9 +82,11 @@ def main(args):
             else:
                 prompt += " Answer:"
         else:
-            prompt += "\nASSISTANT:"
+            prompt += "\nAnswer:"
         prompts.append(prompt)
-
+    # Generate prompts for each test example by concatenating the prompt prefix, the question, and the "Answer:" keyword.
+    # If chat formatting is enabled, format the prompt using the chat formatting function.
+    # 不需要搞这个format
     if args.model_name_or_path:
         print("Loading model and tokenizer...")
         if args.use_vllm:
@@ -97,11 +102,12 @@ def main(args):
                 max_tokens=512,
                 stop=["\n"],
             )
-            # We need to remap the outputs to the prompts because vllm might not return outputs for some prompts (e.g., if the prompt is too long)
+            # Generate completions using VLLM (Very Large Language Model)
             generations = model.generate(prompts, sampling_params)
             prompt_to_output = {
                 g.prompt: g.outputs[0].text for g in generations
             }
+            #dict生成式，g.prompt是key，g.outputs[0].text是value
             outputs = [prompt_to_output[prompt] if prompt in prompt_to_output else "" for prompt in prompts]
         else:
             model, tokenizer = load_hf_lm_and_tokenizer(
@@ -112,14 +118,14 @@ def main(args):
                 gptq_model=args.gptq,
                 use_fast_tokenizer=not args.use_slow_tokenizer,
             )
-            new_line_token = tokenizer.encode("\n", add_special_tokens=False)[-1] # get the last token because the tokenizer may add space tokens at the start.
+            new_line_token = tokenizer.encode("\n", add_specialtokens=False)[-1] # get the last token because the tokenizer may add space tokens at the start.
             outputs = generate_completions(
                 model=model,
                 tokenizer=tokenizer,
                 prompts=prompts,
-                max_new_tokens=200,
+                max_new_tokens=512,
                 batch_size=args.eval_batch_size,
-                #个人感觉 stop_id是一个额外的，所以先注释掉 stop_id_sequences=[[new_line_token]],
+                stop_id_sequences=[[new_line_token]],
                 do_sample=False,
             )
     else:
@@ -131,6 +137,10 @@ def main(args):
             output_path=os.path.join(args.save_dir, f"openai_results.jsonl"),
         )
         outputs = [result["output"] for result in results]
+    # If a model name or path is specified, load the model and tokenizer.
+    # If VLLM is enabled, generate completions using the VLLM model.
+    # Otherwise, use the Hugging Face LM and tokenizer to generate completions.
+    # If no model name or path is specified, query the OpenAI chat model for completions.
 
     predictions = []
     for output in outputs:
@@ -141,12 +151,14 @@ def main(args):
             predictions.append(numbers[-1])
         else:
             predictions.append(output)
-        
+    # Process the model outputs to extract the predictions (numbers) or use the original output as the prediction.
+
     print("Calculating accuracy...")
     targets = [example["answer"] for example in test_data]
 
     em_score = exact_match.compute(predictions=predictions, references=targets, ignore_case=True, ignore_punctuation=True)["exact_match"]
     print(f"Exact match : {em_score}")
+    # Compare the predictions with the ground truth answers to calculate the exact match score.
 
     predictions = [{
         "question": example["question"],
@@ -158,11 +170,12 @@ def main(args):
     with open(os.path.join(args.save_dir, f"predictions.jsonl"), "w") as fout:
         for prediction in predictions:
             fout.write(json.dumps(prediction) + "\n") 
-    
+
     with open(os.path.join(args.save_dir, "metrics.json"), "w") as fout:
         json.dump({
             "exact_match": em_score
         }, fout, indent=4)
+    # Save the predictions and accuracy metrics in JSON format.
 
 
 if __name__ == "__main__":
@@ -212,12 +225,6 @@ if __name__ == "__main__":
         help="max number of examples to use for demonstration."
     )
     parser.add_argument(
-        "--seed", 
-        type=int, 
-        default=42, 
-        help="max number of examples to use for demonstration."
-    )
-    parser.add_argument(
         "--no_cot", 
         action="store_true", 
         help="If given, we're evaluating a model without chain-of-thought."
@@ -258,5 +265,4 @@ if __name__ == "__main__":
 
     # model_name_or_path and openai_engine cannot be both None or both not None.
     assert (args.model_name_or_path is None) != (args.openai_engine is None), "Either model_name_or_path or openai_engine should be specified."
-    print("启动程序")
     main(args)

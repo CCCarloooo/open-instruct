@@ -384,6 +384,7 @@ def query_openai_model(engine, instances, output_path=None, batch_size=10, retry
 def dynamic_import_function(function_path):
     '''
     Dynamically import a function from a path string (e.g., "module.submodule.my_function")
+    这蛮有趣的，可以用来动态导入函数。
     '''
     module_path, function_name = function_path.rsplit(".", 1)
     module = import_module(module_path)
