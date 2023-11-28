@@ -5,7 +5,7 @@ export CUDA_VISIBLE_DEVICES=0
 python -m eval.codex_humaneval.run_eval \
     --data_file data/eval/codex_humaneval/HumanEval.jsonl.gz \
     --eval_pass_at_ks 1 5 10 20 \
-    --unbiased_sampling_size_n 20 \
+    --unbiased_sampling_size_n 1 \
     --temperature 0.1 \
     --save_dir results/codex_humaneval/llama_7B_temp_0_1 \
     --model ../hf_llama_models/7B/ \

@@ -16,6 +16,22 @@ def create_prompt_with_tulu_chat_format(messages, bos="<s>", eos="</s>", add_bos
     formatted_text = bos + formatted_text if add_bos else formatted_text
     return formatted_text
 
+def create_prompt_with_vicuna_chat_format(messages, bos="<s>", eos="</s>", add_bos=True):
+    systemprompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.\n\n"
+    formatted_text = ""
+    for message in messages:
+        if message["role"] == "system":
+            formatted_text += "<|system|>\n" + message["content"] + "\n"
+        elif message["role"] == "user":
+            formatted_text += systemprompt + "USER: " + message["content"] + "\n"
+        elif message["role"] == "assistant":
+            formatted_text += "<|assistant|>\n" + message["content"].strip() + eos + "\n"
+        else:
+            raise ValueError(
+                "vicuna chat template only supports 'system', 'user' and 'assistant' roles. Invalid role: {}.".format(message["role"])
+                )
+    formatted_text += "ASSISTANT:"
+    return formatted_text
 
 def create_prompt_with_llama2_chat_format(messages, bos="<s>", eos="</s>", add_bos=True):
     '''

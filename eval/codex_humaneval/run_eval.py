@@ -12,7 +12,8 @@ from eval.utils import (
 )
 from eval.codex_humaneval.data import write_jsonl, read_problems
 from eval.codex_humaneval.evaluation import evaluate_functional_correctness
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def main(args):
     random.seed(42)
@@ -24,6 +25,7 @@ def main(args):
     if args.max_num_examples is not None and len(test_data) > args.max_num_examples:
         test_data = random.sample(test_data, args.max_num_examples)
     print("Number of examples:", len(test_data))
+    #读取数据
 
     if args.use_chat_format:
         prompts = []
@@ -38,7 +40,8 @@ def main(args):
             prompts.append(prompt)
     else:
         prompts = [example["prompt"] for example in test_data]
-        
+    # prompt format
+
     if args.model_name_or_path:
         if args.use_vllm:
             model = vllm.LLM(
@@ -94,6 +97,8 @@ def main(args):
                 )
                 outputs_per_sampling_iter.append(samping_outputs)
             # regroup the outputs to match the number of test data.
+            #进行二十轮的输出 对应的是一样的输入
+
             outputs = []
             for i in range(len(prompts)):
                 for j in range(args.unbiased_sampling_size_n):
@@ -116,11 +121,14 @@ def main(args):
         for result in results:
             for choice in result["response_metadata"]["choices"]:
                 outputs.append(choice["message"]["content"])
+    #加载模型并加载输出
 
     # duplicates test data to match the number of outputs.
     duplicate_test_data = [
         example for example in test_data for _ in range(args.unbiased_sampling_size_n)
     ]
+    # 20*len(example)
+
     assert len(duplicate_test_data) == len(outputs)
     predictions = [{"task_id": example["task_id"], "prompt": example["prompt"], "completion": output} for example, output in zip(duplicate_test_data, outputs)]
     prediction_save_path = os.path.join(args.save_dir, "codex_eval_predictions.jsonl")
@@ -236,5 +244,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # model_name_or_path and openai_engine cannot be both None or both not None.
     assert (args.model_name_or_path is None) != (args.openai_engine is None), "Either model_name_or_path or openai_engine should be specified."
-    assert args.unbiased_sampling_size_n >= max(args.eval_pass_at_ks), "n should be larger than the largest k in eval_pass_at_ks."
+    #assert args.unbiased_sampling_size_n >= max(args.eval_pass_at_ks), "n should be larger than the largest k in eval_pass_at_ks."
     main(args)

@@ -1,0 +1,45 @@
+echo "开始执行"
+#改变当前路径
+cd /mnt/data2/mxdi/archive/open-instruct/
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m eval.bbh.run_eval \
+    --data_dir data/eval/bbh \
+    --save_dir results/bbh/llava-7B-no-vllm \
+    --model /mnt/data2/mxdi/models/llava-vicuna \
+    --tokenizer /mnt/data2/mxdi/models/llava-vicuna \
+    --eval_batch_size 10 \
+    --max_num_examples_per_task 40 \
+    --load_in_8bit \
+    --no_cot \
+    --use_vllm \
+
+echo "执行结束" 
+: '
+/mnt/data2/mxdi/models/llava-vicuna
+/mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5
+
+#cot
+CUDA_VISIBLE_DEVICES=4,5 python -m eval.bbh.run_eval \
+    --data_dir data/eval/bbh \
+    --save_dir results/bbh/vicuna-7B-cot-vllm \
+    --model /mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5 \
+    --tokenizer /mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5 \
+    --eval_batch_size 20 \
+    --max_num_examples_per_task 40 \
+    --load_in_8bit \
+    --use_vllm \
+
+# no cot
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m eval.bbh.run_eval \
+    --data_dir data/eval/bbh \
+    --save_dir results/bbh/vicuna-7B-no-vllm \
+    --model /mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5 \
+    --tokenizer /mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5 \
+    --eval_batch_size 10 \
+    --max_num_examples_per_task 40 \
+    --load_in_8bit \
+    --no_cot \
+    --use_vllm \
+
+
+'

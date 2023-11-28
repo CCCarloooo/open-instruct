@@ -1,16 +1,19 @@
 
 echo "开始执行"
+#改变当前路径
+cd /mnt/data2/mxdi/archive/open-instruct/
 
-python -m eval.gsm.run_eval \
-    --data_dir  $DATA_DIR \
-    --max_num_examples 200 \
+CUDA_VISIBLE_DEVICES=4,5 python -m eval.gsm.run_eval \
+    --data_dir $DATA_DIR \
+    --max_num_examples 80 \
     --save_dir $SAVE_DIR \
     --model $MODEL_DIR\
     --tokenizer $MODEL_DIR \
-    --eval_batch_size 20 \
+    --eval_batch_size 10 \
     --n_shot 8 \
     --load_in_8bit \
     --seed $SEED \
+    --use_vllm \
 
 echo "执行结束" 
 : '

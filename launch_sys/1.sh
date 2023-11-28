@@ -1,6 +1,15 @@
 DATA_DIR="/mnt/data2/mxdi/archive/grade-school-math/grade_school_math/data"
-SAVE_DIR="results/gsm/system-cot-8shot-math-1"
-MODEL_DIR="/mnt/data2/mxdi/ift_prac/math_sys/math-lm_sys"
 SEED="23"
 
-source /mnt/data2/mxdi/archive/open-instruct/system_prompt_eval.sh
+SAVE_DIR="results/gsm/llava-8shot-testvllm"
+MODEL_DIR="/mnt/data2/mxdi/models/llava-vicuna"
+TOKENIZER_DIR="/mnt/data2/mxdi/models/llava-vicuna"
+
+
+source /mnt/data2/mxdi/archive/open-instruct/launch_all/system_prompt_eval.sh
+
+: '
+"/mnt/data2/mxdi/archive/hf-mirror/vicuna-7b-v1.5"
+"/mnt/data2/mxdi/models/llava-vicuna"
+
+'

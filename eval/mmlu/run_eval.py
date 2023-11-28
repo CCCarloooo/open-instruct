@@ -32,6 +32,15 @@ def format_example(df, idx, include_answer=True):
         prompt += " {}\n\n".format(df.iloc[idx, k + 1])
     return prompt
 
+def chat_format_example(df, idx, include_answer=True):
+    
+    prompt = df.iloc[idx, 0]
+    k = df.shape[1] - 2
+    for j in range(k):
+        prompt += "\n{}. {}".format(choices[j], df.iloc[idx, j + 1])
+    if include_answer:
+        prompt += " {}\n\n".format(df.iloc[idx, k + 1])
+    return prompt
 
 def gen_prompt(train_df, subject, k=-1):
     prompt = "The following are multiple choice questions (with answers) about {}.\n\n".format(
@@ -48,11 +57,19 @@ def gen_prompt(train_df, subject, k=-1):
 def eval_hf_model(args, subject, model, tokenizer, dev_df, test_df, batch_size=1):
     prompts = []
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
+    #选定格式化函数
+
     for i in range(0, test_df.shape[0]):
         k = args.ntrain
-        prompt_end = format_example(test_df, i, include_answer=False)
+        if args.use_chat_format:
+            prompt_end = chat_format_example(test_df, i, include_answer=False)
+        else:
+            prompt_end = format_example(test_df, i, include_answer=False)
+            #chat的answer可以在formatting_function里面加，这里不加
+
         train_prompt = gen_prompt(dev_df, subject, k)
         prompt = train_prompt + prompt_end
+        #生成prompt 包括shot和问题
 
         if args.use_chat_format:
             messages = [{"role": "user", "content": prompt}]
@@ -61,6 +78,7 @@ def eval_hf_model(args, subject, model, tokenizer, dev_df, test_df, batch_size=1
                 prompt += "The answer is:"
             else:
                 prompt += " The answer is:"
+        #添加systemprompt和user、assistant的标签
 
         tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
         # make sure every prompt is less than 2048 tokens
@@ -79,6 +97,7 @@ def eval_hf_model(args, subject, model, tokenizer, dev_df, test_df, batch_size=1
                     
             tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
         prompts.append(prompt)
+    #对每个test样本生成处理 生成prompt
 
     # get the answer for all examples
     # adding a prefix space here, as that's expected from the prompt
@@ -102,6 +121,7 @@ def eval_hf_model(args, subject, model, tokenizer, dev_df, test_df, batch_size=1
     all_probs = np.array(all_probs)
     print("Average accuracy {:.3f} - {}".format(acc, subject))
     return cors, acc, all_probs
+    #计算metrics
 
 
 def eval_openai_chat_engine(args, subject, engine, dev_df, test_df, batch_size=1):
@@ -152,11 +172,12 @@ def main(args):
             model_name_or_path=args.model_name_or_path, 
             tokenizer_name_or_path=args.tokenizer_name_or_path,
             load_in_8bit=args.load_in_8bit, 
-            device_map="balanced_low_0" if torch.cuda.device_count() > 1 else "auto",
+            device_map="auto",
             gptq_model=args.gptq,
             use_fast_tokenizer=not args.use_slow_tokenizer,
         )
-    
+    # 加载模型
+
     subjects = sorted(
         [
             f.split("_test.csv")[0]
@@ -177,6 +198,7 @@ def main(args):
         subcat: [] for subcat_lists in subcategories.values() for subcat in subcat_lists
     }
     cat_cors = {cat: [] for cat in categories}
+    #确定类别，并且确定最后的两种：subcat_cors和cat_cors：分项输出和定义类别后的联合输出
 
     for subject in tqdm(subjects, desc=f"Evaluating subjects: "):
         
@@ -186,6 +208,8 @@ def main(args):
         test_df = pd.read_csv(
             os.path.join(args.data_dir, "test", subject + "_test.csv"), header=None
         )
+        #5-shot和全部的test
+
         if args.n_instances and args.n_instances < test_df.shape[0]:
             test_df = test_df.sample(args.n_instances, random_state=42)
 
@@ -193,7 +217,8 @@ def main(args):
             cors, acc, probs = eval_hf_model(args, subject, model, tokenizer, dev_df, test_df, args.eval_batch_size)
         else:
             cors, acc, probs = eval_openai_chat_engine(args, subject, args.openai_engine, dev_df, test_df, args.eval_batch_size)
-            
+        #模型运算
+
         subcats = subcategories[subject]
         for subcat in subcats:
             subcat_cors[subcat].append(cors)
@@ -212,6 +237,8 @@ def main(args):
             ),
             index=None,
         )
+        #保存结果
+    #test循环
 
     for subcat in subcat_cors:
         subcat_acc = np.mean(np.concatenate(subcat_cors[subcat]))

@@ -15,7 +15,28 @@ from eval.utils import (
 )
 from eval.gsm.examplars import EXAMPLARS as GSM_EXAMPLARS
 
-exact_match = evaluate.load("exact_match")
+exact_match = evaluate.load("/mnt/data2/mxdi/archive/exact_match.py")
+from llava.conversation import conv_templates
+
+
+def modify_system(examplar):
+
+    global GSM_EXAMPLARS
+    demonstrations = []
+    for example in GSM_EXAMPLARS:
+        demonstrations.append(
+            " " + "USER: " + example["question"] + "ASSISTANT: " + example["cot_answer"]
+        )
+
+    conv = conv_templates[examplar].copy()
+    conv.system = conv.system + "\n\n" + "\n\n".join(demonstrations) + "\n\n"
+    return conv
+
+def get_prompt(question,conv):
+    conv.append_message(conv.roles[0], question)
+    conv.append_message(conv.roles[1], None)
+    prompt = conv.get_prompt()
+    return prompt
 
 def main(args):
     print(args.seed)
@@ -42,47 +63,21 @@ def main(args):
 
     if args.max_num_examples and len(test_data) > args.max_num_examples:
         test_data = random.sample(test_data, args.max_num_examples)
-        
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir, exist_ok=True)
 
-    systemprompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
-    #"Answer the following questions.\n\n"
-    systemprompt1 = "A conversation between an inquisitive user and an artificial intelligence assistant regarding mathematical problem-solving.The artificial intelligence assistant provides informative, thorough, and courteous responses to inquiries related to mathematics.\n\n"
-    systemprompt2 = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
-    global GSM_EXAMPLARS
-    if args.n_shot:
-        if len(GSM_EXAMPLARS) > args.n_shot:
-            GSM_EXAMPLARS = random.sample(GSM_EXAMPLARS, args.n_shot)
-        demonstrations = []
-        for example in GSM_EXAMPLARS:
-            if args.no_cot:
-                demonstrations.append(
-                    "USER: " + example["question"] + "\n" + "ASSISTANT: " + example["short_answer"]
-                )
-            else:
-                demonstrations.append(
-                    "USER: " + example["question"] + "\n" + "ASSISTANT: " + example["cot_answer"]
-                )
-        prompt_prefix = systemprompt + "\n\n".join(demonstrations) + "\n\n"
-    else:
-        prompt_prefix = systemprompt
-
+    ###############################################   
+    # make the input
+    examplar = "llava_v1"
+    conv = modify_system(examplar)
+    roles = conv.roles
     prompts = []
-    chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
     for example in test_data:
-        prompt = prompt_prefix + "USER: " + example["question"].strip()
-        if args.use_chat_format:
-            messages = [{"role": "user", "content": prompt}]
-            prompt = chat_formatting_function(messages, add_bos=False)
-            if prompt[-1] in ["\n", " "]:
-                prompt += "Answer:"
-            else:
-                prompt += "Answer:"
-        else:
-            prompt += "\nASSISTANT:"
+        prompt = get_prompt(example["question"],conv)
         prompts.append(prompt)
+    print('#######################'+str(len(prompts)))
+    ###############################################
 
     if args.model_name_or_path:
         print("Loading model and tokenizer...")
@@ -121,7 +116,7 @@ def main(args):
                 prompts=prompts,
                 max_new_tokens=200,
                 batch_size=args.eval_batch_size,
-                #个人感觉 stop_id是一个额外的，所以先注释掉 stop_id_sequences=[[new_line_token]],
+                stop_id_sequences=[[new_line_token]],
                 do_sample=False,
             )
     else:
@@ -165,7 +160,6 @@ def main(args):
         json.dump({
             "exact_match": em_score
         }, fout, indent=4)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -245,17 +239,7 @@ if __name__ == "__main__":
         action="store_true", 
         help="If given, we will use the vllm library, which will likely increase the inference throughput."
     )
-    parser.add_argument(
-        "--use_chat_format", 
-        action="store_true", 
-        help="If given, we will use the chat format for the prompts."
-    )
-    parser.add_argument(
-        "--chat_formatting_function", 
-        type=str, 
-        default="eval.templates.create_prompt_with_tulu_chat_format", 
-        help="The function to use to create the chat format. This function will be dynamically imported. Please see examples in `eval/templates.py`."
-    )
+
     args = parser.parse_args()
 
     # model_name_or_path and openai_engine cannot be both None or both not None.

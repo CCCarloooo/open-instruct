@@ -1,11 +1,12 @@
 #42 base test 0
 
+DEVICES_OF_GSM=0
 DATA_DIR="/mnt/data2/mxdi/archive/grade-school-math/grade_school_math/data"
-SAVE_DIR="results/gsm/cot-8shot"
+SAVE_DIR="results/gsm/cot-8shot-test"
 MODEL_DIR="/mnt/data2/mxdi/models/Llama-2-7b-hf"
 SEED="42"
 
-source /mnt/data2/mxdi/archive/open-instruct/system_prompt_eval.sh
+source /mnt/data2/mxdi/archive/open-instruct/launch_all/launch_aaalll.sh
 
 : '
 #42 system test 0

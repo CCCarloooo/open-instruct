@@ -86,11 +86,12 @@ def evaluate_functional_correctness(
         correct.append(sum(passed))
     total = np.array(total)
     correct = np.array(correct)
+    #计算 total和correct的值
 
     ks = k
     pass_at_k = {f"pass@{k}": estimate_pass_at_k(total, correct, k).mean()
                  for k in ks if (total >= k).all()}
-
+    #    pass_at_k = {f"pass@{k}": estimate_pass_at_k(total, correct, k).mean() for k in ks if (total >= k).all()}
     # Finally, save the results in one file:
     def combine_results():
         for sample in stream_jsonl(sample_file):

@@ -77,6 +77,7 @@ def main(args):
                 model=args.model_name_or_path,
                 tokenizer=args.tokenizer_name_or_path if args.model_name_or_path else args.model_name_or_path,
                 tokenizer_mode="slow" if args.use_slow_tokenizer else "auto",
+                tensor_parallel_size=torch.cuda.device_count(),
             )
             sampling_params = vllm.SamplingParams(
                 temperature=0,  # greedy decoding
@@ -119,10 +120,11 @@ def main(args):
 
 
     # Run the toxicity classifier
-    toxigen_roberta_tokenizer = AutoTokenizer.from_pretrained("tomh/toxigen_roberta")
+    toxigen_roberta_tokenizer = AutoTokenizer.from_pretrained("/mnt/data2/mxdi/archive/hf-mirror/toxigen_roberta")
     toxigen_roberta_classifier = AutoModelForSequenceClassification.from_pretrained(
-        "tomh/toxigen_roberta"
+        "/mnt/data2/mxdi/archive/hf-mirror/toxigen_roberta"
     )
+
     if torch.cuda.is_available():
         toxigen_roberta_classifier = toxigen_roberta_classifier.cuda()
 
