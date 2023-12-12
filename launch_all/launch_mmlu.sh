@@ -8,7 +8,7 @@ CUDA_VISIBLE_DEVICES=4,5 python -m eval.mmlu.run_eval \
     --save_dir results/mmlu/llava-7b \
     --model_name_or_path /mnt/data2/mxdi/models/llava-7b-origin-vicuna\
     --tokenizer_name_or_path /mnt/data2/mxdi/models/llava-7b-origin-vicuna\
-    --eval_batch_size 16 \
+    --eval_batch_size 4 \
     --load_in_8bit\
 
 

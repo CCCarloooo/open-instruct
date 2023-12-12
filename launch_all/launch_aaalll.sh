@@ -22,7 +22,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES_OF_VLLM python -m eval.mmlu.run_eval \
     --save_dir $MMLU_SAVE_DIR \
     --model_name_or_path $MODEL_DIR\
     --tokenizer_name_or_path $MODEL_DIR\
-    --eval_batch_size 16 \
+    --eval_batch_size 4 \
     --load_in_8bit\
 
 echo "开始评估bbh"

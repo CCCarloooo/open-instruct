@@ -1,5 +1,5 @@
-MODEL_DIR="/mnt/data2/mxdi/archive/models/cl_llava_vicuna/2000_7b"
-MODEL_NAME="2000_7b_llava-7b-vicuna"
+MODEL_DIR="/mnt/data2/mxdi/archive/models/cl_llava_vicuna/6000_7b"
+MODEL_NAME="6000_7b"
 SEED="42"
 DEVICES_OF_VLLM=4,5
 

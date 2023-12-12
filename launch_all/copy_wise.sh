@@ -1,7 +1,7 @@
-MODEL_DIR="/mnt/data2/mxdi/archive/models/cl_llava_vicuna/4000_7b"
-MODEL_NAME="4000_7b_llava-7b-vicuna"
+MODEL_DIR="/mnt/data2/mxdi/archive/models/cl_llava_vicuna/10000_7b"
+MODEL_NAME="10000_7b"
 SEED="42"
-DEVICES_OF_VLLM=0,1
+DEVICES_OF_VLLM=2,3
 
 
 GSM_DATA_DIR="/mnt/data2/mxdi/archive/grade-school-math/grade_school_math/data"
