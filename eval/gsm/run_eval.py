@@ -69,6 +69,7 @@ def main(args):
     else:
         prompt_prefix = systemprompt
 
+<<<<<<< HEAD
     prompts = []
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
     for example in test_data:
@@ -83,6 +84,18 @@ def main(args):
         else:
             prompt += "\nASSISTANT:"
         prompts.append(prompt)
+=======
+    if args.use_chat_format:
+        prompts = []
+        chat_formatting_function = dynamic_import_function(args.chat_formatting_function)
+        for example in test_data:
+            messages = [{"role": "user", "content": prompt_prefix + "Question: " + example["question"].strip()}]
+            prompt = chat_formatting_function(messages, add_bos=False)
+            prompt += "Answer:" if prompt[-1] in ["\n", " "] else " Answer:"
+            prompts.append(prompt)
+    else:
+        prompts = [prompt_prefix + "Question: " + example["question"].strip() + "\nAnswer:" for example in test_data]
+>>>>>>> 60ceefa6d9339663843decb69a1e6546fc717c4f
 
     if args.model_name_or_path:
         print("Loading model and tokenizer...")
@@ -92,12 +105,11 @@ def main(args):
                 tokenizer=args.tokenizer_name_or_path if args.tokenizer_name_or_path else args.model_name_or_path,
                 tokenizer_mode="slow" if args.use_slow_tokenizer else "auto",
                 tensor_parallel_size=torch.cuda.device_count(),
-                max_num_batched_tokens=4096,
             )
             sampling_params = vllm.SamplingParams(
                 temperature=0,
                 max_tokens=512,
-                stop=["\n"],
+                stop=["\n"] if not args.use_chat_format else None, # we only use stop token for non-chat format (usually applied to vanilla pretrained language models). For chat format, we will rely on the model knows when to stop.
             )
             # We need to remap the outputs to the prompts because vllm might not return outputs for some prompts (e.g., if the prompt is too long)
             generations = model.generate(prompts, sampling_params)
@@ -121,7 +133,11 @@ def main(args):
                 prompts=prompts,
                 max_new_tokens=200,
                 batch_size=args.eval_batch_size,
+<<<<<<< HEAD
                 #个人感觉 stop_id是一个额外的，所以先注释掉 stop_id_sequences=[[new_line_token]],
+=======
+                stop_id_sequences=[[new_line_token]] if not args.use_chat_format else None,  # we only use stop token for non-chat format (usually applied to vanilla pretrained language models). For chat format, we will rely on the model knows when to stop.
+>>>>>>> 60ceefa6d9339663843decb69a1e6546fc717c4f
                 do_sample=False,
             )
     else:
